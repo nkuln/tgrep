@@ -4,6 +4,53 @@ import (
 	"testing"
 )
 
+func TestMakeAuthorizedRequest(t *testing.T) {
+	type TestCase struct {
+		ck, cs, ts, at string
+		nonce          string
+		timestamp      int64
+		method, url    string
+		params         map[string]string
+		expected       string
+	}
+	golden := []TestCase{
+		TestCase{
+			"xvz1evFS4wEEPTGEFPHBog",
+			"kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw",
+			"LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE",
+			"370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb",
+			"kYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg", 1318622958,
+			"Post", "https://api.twitter.com/1/statuses/update.json",
+			map[string]string{
+				"status":           "Hello Ladies + Gentlemen, a signed OAuth request!",
+				"include_entities": "true",
+			}, `OAuth oauth_consumer_key="xvz1evFS4wEEPTGEFPHBog", ` +
+				`oauth_nonce="kYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg", ` +
+				`oauth_signature="tnnArxj06cWHq44gCs1OSKk%2FjLY%3D", ` +
+				`oauth_signature_method="HMAC-SHA1", ` +
+				`oauth_timestamp="1318622958", ` +
+				`oauth_token="370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb", ` +
+				`oauth_version="1.0"`},
+	}
+	for _, testCase := range golden {
+		currentTimeMillis = func() int64 { return testCase.timestamp }
+		randomBase64String = func(int) (string, error) {
+			return testCase.nonce, nil
+		}
+		req, err := MakeAuthorizedRequest(testCase.ck, testCase.cs, testCase.ts,
+			testCase.at, testCase.method, testCase.url, testCase.params)
+		if err != nil {
+			t.Fatalf("Making request failed, received error %s.", err)
+		}
+		actual := req.Header.Get("Authorization")
+		if testCase.expected != actual {
+			t.Errorf("input:\n%s\n\nactual:\n%s\n\nexpected:\n%s\n",
+				testCase, actual, testCase.expected)
+		}
+	}
+
+}
+
 func TestGetSignature(t *testing.T) {
 	type TestCase struct {
 		cs, ts      string
